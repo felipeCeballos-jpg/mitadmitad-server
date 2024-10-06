@@ -13,7 +13,11 @@ const BillSchema = new mongoose.Schema({
     {
       name: String,
       price: Number,
-      quantity: Number,
+      quantity: {
+        type: Number,
+        default: 0,
+        require: true,
+      },
     },
   ],
   total: {

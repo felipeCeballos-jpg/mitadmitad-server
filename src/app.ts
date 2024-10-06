@@ -7,8 +7,14 @@ import { logger } from './utils/logger';
 import billRouter from './routes/bill';
 import paymentRouter from './routes/payment';
 import { connectDB } from './config/db';
+import { createServer } from 'http';
+import { Server } from 'socket.io';
 
 const app = express();
+const server = createServer(app);
+const io = new Server(server, {
+  connectionStateRecovery: {},
+});
 
 // Middleware
 app.use(express.json());
@@ -28,8 +34,10 @@ connectDB();
 app.use('/api/bills', billRouter);
 app.use('/api/payments', paymentRouter);
 
+// Set up Socket.IO
+
 const PORT = process.env.PORT || 3000;
 
-app.listen(PORT, () => {
+server.listen(PORT, () => {
   logger.info(`Server running on port ${PORT}`);
 });

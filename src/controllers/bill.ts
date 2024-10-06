@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import Bill from '../models/Bill';
 import { generateQRCode } from '../services/qrcode';
+import BillSession from '../models/BillSession';
 
 interface Item {
   name: string;
@@ -51,5 +52,43 @@ export async function getBillByID(req: Request, res: Response) {
     res.status(200).json({ success: true, data: bill });
   } catch (err: any) {
     res.status(400).json({ success: false, error: err.message });
+  }
+}
+
+export async function getBillStatus(req: Request, res: Response) {
+  try {
+    const { billID } = req.params;
+
+    const bill = await Bill.findById(billID);
+    if (!bill) {
+      res.status(404).json({ success: false, error: 'Bill not found' });
+      return;
+    }
+
+    const billSession = await BillSession.findOne({ billID });
+    if (!billSession) {
+      res.status(404).json({ success: false, error: 'Bill session not found' });
+      return;
+    }
+
+    const totalPaid = billSession.paymentStatus.reduce(
+      (sum, payment) => sum + payment.amount,
+      0
+    );
+    const remainingAmount = Math.max(0, bill.total - totalPaid);
+
+    const response = {
+      billID: bill._id,
+      total: bill.total,
+      status: bill.status,
+      totalPaid,
+      remainingAmount,
+      activeUsers: billSession.activeUsers,
+      paymentStatus: billSession.paymentStatus,
+    };
+
+    res.status(200).json({ success: true, data: response });
+  } catch (error: any) {
+    res.status(400).json({ success: false, error: error.message });
   }
 }

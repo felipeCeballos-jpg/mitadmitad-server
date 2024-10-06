@@ -1,11 +1,15 @@
 import { Request, Response } from 'express';
 import Bill from '../models/Bill';
 import { processPayment } from '../services/payment';
+import mongoose from 'mongoose';
+import BillSession from '../models/BillSession';
+import { processSetAmountPayment } from '../services/payAmount';
 
 export async function makePayment(req: Request, res: Response) {
   try {
     const {
       billID,
+      userID,
       amount,
       paymentMethod,
       tip,
@@ -14,35 +18,30 @@ export async function makePayment(req: Request, res: Response) {
       paymentToken,
       installments,
       issuer,
+      items,
+      paymentType,
+    }: {
+      billID: string;
+      userID: string;
+      amount: number;
+      paymentMethod: string;
+      tip: number;
+      paymentMethodId: string;
+      transactionAmount: number;
+      paymentToken: string;
+      installments: number;
+      issuer: number;
+      items: { itemID: string; quantity: number }[];
+      paymentType: 'setAmount' | 'splitBill' | 'payForItems';
     } = req.body;
-    const bill = await Bill.findById(billID);
+    let result;
 
-    if (!bill) {
-      res.status(400).json({ success: false, error: 'Bill no found' });
-      return;
+    switch (paymentType) {
+      case 'setAmount':
+        result = await processSetAmountPayment(billID, userID, amount, {
+          paymentToken,
+        });
     }
-
-    const paymentData = {
-      transaction_amount: Number(transactionAmount),
-      token: paymentToken,
-      //description: body.description,
-      installments: Number(installments),
-      payment_method_id: paymentMethodId,
-      issuer_id: issuer,
-      payer: {
-        email: 'ceballos-65@hotmail.com',
-      },
-    };
-
-    //const totalAmount = amount + (tip || 0);
-    const paymentResult = await processPayment(paymentData);
-    if (!paymentResult.success) {
-      res.status(400).json({ success: false, error: paymentResult.error });
-      return;
-    }
-
-    bill.status = amount >= bill.total ? 'paid' : 'partially_paid';
-    await bill.save();
     res.status(200).json({ success: true, data: paymentResult });
   } catch (err: any) {
     res.status(400).json({ success: false, error: err.message });
