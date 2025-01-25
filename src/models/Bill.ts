@@ -1,5 +1,15 @@
 import mongoose from 'mongoose';
 
+const Product = new mongoose.Schema({
+  name: String,
+  price: Number,
+  quantity: {
+    type: Number,
+    default: 0,
+    require: true,
+  },
+});
+
 const BillSchema = new mongoose.Schema({
   restaurantID: {
     type: String,
@@ -9,17 +19,7 @@ const BillSchema = new mongoose.Schema({
     type: String,
     require: false,
   },
-  items: [
-    {
-      name: String,
-      price: Number,
-      quantity: {
-        type: Number,
-        default: 0,
-        require: true,
-      },
-    },
-  ],
+  products: [Product],
   total: {
     type: Number,
     default: 0,

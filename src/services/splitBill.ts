@@ -12,12 +12,11 @@ export async function splitBillPayment(
   billID: string,
   userID: string,
   splitInfo: SplitInfo,
-  paymentMethod: string,
   paymentData: {
     token: string;
     installments: number;
     paymentMethodID: string;
-    issuerID: string;
+    issuerID: number;
   }
 ) {
   const session = await mongoose.startSession();

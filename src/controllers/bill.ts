@@ -3,7 +3,7 @@ import Bill from '../models/Bill';
 import { generateQRCode } from '../services/qrcode';
 import BillSession from '../models/BillSession';
 
-interface Item {
+interface Product {
   name: string;
   price: number;
   quantity: number;
@@ -11,11 +11,11 @@ interface Item {
 
 export async function createBill(req: Request, res: Response) {
   try {
-    const { restaurantID, tableNumber, items } = req.body;
+    const { restaurantID, tableNumber, products } = req.body;
 
     // Get the total of the bill
-    const total = items.reduce(
-      (sum: number, item: Item) => sum + item.price * item.quantity,
+    const total = products.reduce(
+      (sum: number, product: Product) => sum + product.price * product.quantity,
       0
     );
 
@@ -23,7 +23,7 @@ export async function createBill(req: Request, res: Response) {
     const bill = new Bill({
       restaurantID,
       tableNumber,
-      items,
+      products,
       total,
     });
 
@@ -57,9 +57,9 @@ export async function getBillByID(req: Request, res: Response) {
 
 export async function getBillStatus(req: Request, res: Response) {
   try {
-    const { billID } = req.params;
+    const { id: billID } = req.params;
 
-    const bill = await Bill.findById(billID);
+    const bill = await Bill.findById({ _id: billID });
     if (!bill) {
       res.status(404).json({ success: false, error: 'Bill not found' });
       return;
@@ -85,6 +85,7 @@ export async function getBillStatus(req: Request, res: Response) {
       remainingAmount,
       activeUsers: billSession.activeUsers,
       paymentStatus: billSession.paymentStatus,
+      reservedProducts: billSession.productReservations,
     };
 
     res.status(200).json({ success: true, data: response });

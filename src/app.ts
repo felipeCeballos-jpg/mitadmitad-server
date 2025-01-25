@@ -1,30 +1,31 @@
+import 'dotenv/config';
 import express from 'express';
 import morgan from 'morgan';
 import cors from 'cors';
 import helmet from 'helmet';
-import 'dotenv/config';
 import { logger } from './utils/logger';
 import billRouter from './routes/bill';
 import paymentRouter from './routes/payment';
+import userRouter from './routes/user';
 import { connectDB } from './config/db';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
+import { socketInit } from './services/sockets';
 
 const app = express();
 const server = createServer(app);
 const io = new Server(server, {
   connectionStateRecovery: {},
+  cors: {
+    origin: '*',
+  },
 });
 
 // Middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(morgan('dev'));
-app.use(
-  cors({
-    origin: '*',
-  })
-);
+app.use(cors());
 app.use(helmet());
 
 // Connect to DB
@@ -33,8 +34,10 @@ connectDB();
 // Routes
 app.use('/api/bills', billRouter);
 app.use('/api/payments', paymentRouter);
+app.use('/api/user', userRouter);
 
 // Set up Socket.IO
+socketInit(io);
 
 const PORT = process.env.PORT || 3000;
 

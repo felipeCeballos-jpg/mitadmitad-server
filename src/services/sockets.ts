@@ -1,18 +1,34 @@
 import { Server } from 'socket.io';
 import BillSession from '../models/BillSession';
-import { releaseReservations, reserveProducts } from './productReservation';
+import {
+  releaseReservations,
+  reserveProducts,
+  releaseProducts,
+} from './productReservation';
+import Bill from '../models/Bill';
 
-export function setupSocketIO(io: Server) {
+export function socketInit(io: Server) {
   io.on('connection', (socket) => {
+    console.log('Connection: ', socket.id);
     socket.on('join-bill', async (billID: string, userID: string) => {
       socket.join(billID);
 
       let billSession = await BillSession.findOne({ billID });
+
       if (!billSession) {
         billSession = new BillSession({ billID, activeUsers: [] });
       }
 
-      billSession.activeUsers.push({ userID, joinedAt: new Date() });
+      // check if user is already connected
+      const hasUsersActived = billSession.activeUsers.filter(
+        (user) => user.userID === userID
+      );
+
+      const userFoundedit = 1;
+      if (hasUsersActived.length < userFoundedit) {
+        billSession.activeUsers.push({ userID, joinedAt: new Date() });
+      }
+
       await billSession.save();
 
       io.to(billID).emit('user-joined', {
@@ -42,7 +58,7 @@ export function setupSocketIO(io: Server) {
       async (
         billID: string,
         userID: string,
-        status: 'pending' | 'paid' | 'partially_paid'
+        status: 'pending' | 'paid' | 'failed'
       ) => {
         const billSession = await BillSession.findOne({ billID });
 
@@ -63,14 +79,23 @@ export function setupSocketIO(io: Server) {
 
     socket.on(
       'reserve-product',
-      async (
-        billID: string,
-        userID: string,
-        products: { itemID: string; quantity: number }[]
-      ) => {
+      async ({
+        billID,
+        userID,
+        product,
+      }: {
+        billID: string;
+        userID: string;
+        product: { _id: string; quantity: number };
+      }) => {
+        console.log('Entreeee No lo puedo creerr');
         try {
-          const reservations = await reserveProducts(billID, userID, products);
-          io.to(billID).emit('products-reserved', { userID, reservations });
+          console.log('Products from Client: ', product);
+          const reservations = await reserveProducts(billID, userID, product);
+          console.log('Reservations: ', reservations);
+          socket.broadcast
+            .to(billID)
+            .emit('product-reserved', { userID, product });
         } catch (error: any) {
           socket.emit('reservation-error', { error: error.message });
         }
@@ -78,24 +103,67 @@ export function setupSocketIO(io: Server) {
     );
 
     socket.on(
+      'release-product',
+      async ({
+        billID,
+        userID,
+        productID,
+      }: {
+        billID: string;
+        userID: string;
+        productID: string;
+      }) => {
+        try {
+          const reservations = await releaseProducts(billID, userID, productID);
+          console.log('Realeased resevations: ', reservations);
+          socket.broadcast
+            .to(billID)
+            .emit('product-released', { userID, productID });
+        } catch (error: any) {
+          socket.emit('reservation-error', { error: error.message });
+        }
+      }
+    );
+
+    socket.on('payment-made', async (billID) => {
+      const bill = await Bill.findById(billID);
+      const billSession = await BillSession.findOne({ billID }).populate(
+        'billID'
+      );
+
+      if (billSession && billSession.billID && bill) {
+        io.to(billID).emit('bill-updated', {
+          totalAmountPaid: billSession.totalAmountPaid,
+          remainingAmount: bill.total - billSession.totalAmountPaid,
+          status: bill.status,
+          paymentStatus: billSession.paymentStatus,
+        });
+      }
+    });
+
+    socket.on(
       'release-reservations',
-      async (billID: string, userID: string) => {
+      async ({ billID, userID }: { billID: string; userID: string }) => {
         await releaseReservations(billID, userID);
         io.to(billID).emit('reservations-released', { userID });
       }
     );
 
     socket.on('disconnect', async () => {
+      console.log('User Disconnect: ', socket.id);
       // Release all reservations for the disconnected user
       const billSession = await BillSession.find({
         'activeUsers.userID': socket.id,
       });
-
+      console.log('Disconnect session: ', billSession);
       for (const session of billSession) {
-        await releaseReservations(session.billID, socket.id);
-        io.to(session.billID).emit('reservations-released', {
-          userID: socket.id,
-        });
+        // TODO: this code need to be update and review
+        if (session.billID) {
+          await releaseReservations(session.billID.toString(), socket.id);
+          io.to(session.billID.toString()).emit('reservations-released', {
+            userID: socket.id,
+          });
+        }
       }
     });
   });

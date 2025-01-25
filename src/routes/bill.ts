@@ -5,6 +5,6 @@ const billRouter = express.Router();
 
 billRouter.post('/', createBill);
 billRouter.get('/:id', getBillByID);
-billRouter.get('/:bill/status', getBillStatus);
+billRouter.get('/status/:id', getBillStatus);
 
 export default billRouter;
