@@ -95,7 +95,7 @@ export function socketInit(io: Server) {
           console.log('Reservations: ', reservations);
           socket.broadcast
             .to(billID)
-            .emit('product-reserved', { userID, product });
+            .emit('product-reserved', { userID, productID: product._id });
         } catch (error: any) {
           socket.emit('reservation-error', { error: error.message });
         }
