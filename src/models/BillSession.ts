@@ -2,7 +2,7 @@ import mongoose from 'mongoose';
 
 const ProductReservations = new mongoose.Schema({
   productID: String,
-  userID: String,
+  reservedBy: String,
   quantity: {
     type: Number,
     default: 0,

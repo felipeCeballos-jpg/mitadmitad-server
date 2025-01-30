@@ -79,23 +79,31 @@ export function socketInit(io: Server) {
 
     socket.on(
       'reserve-product',
-      async ({
-        billID,
-        userID,
-        product,
-      }: {
-        billID: string;
-        userID: string;
-        product: { _id: string; quantity: number };
-      }) => {
+      async (
+        {
+          billID,
+          userID,
+          product,
+          productPosition,
+        }: {
+          billID: string;
+          userID: string;
+          product: { _id: string; quantity: number };
+          productPosition: number;
+        },
+        callback
+      ) => {
         console.log('Entreeee No lo puedo creerr');
         try {
           console.log('Products from Client: ', product);
           const reservations = await reserveProducts(billID, userID, product);
           console.log('Reservations: ', reservations);
-          socket.broadcast
-            .to(billID)
-            .emit('product-reserved', { userID, productID: product._id });
+          callback({ status: true });
+          socket.broadcast.to(billID).emit('product-reserved', {
+            userID,
+            productID: product._id,
+            productPosition,
+          });
         } catch (error: any) {
           socket.emit('reservation-error', { error: error.message });
         }
@@ -104,21 +112,27 @@ export function socketInit(io: Server) {
 
     socket.on(
       'release-product',
-      async ({
-        billID,
-        userID,
-        productID,
-      }: {
-        billID: string;
-        userID: string;
-        productID: string;
-      }) => {
+      async (
+        {
+          billID,
+          userID,
+          productID,
+          productPosition,
+        }: {
+          billID: string;
+          userID: string;
+          productID: string;
+          productPosition: number;
+        },
+        callback
+      ) => {
         try {
           const reservations = await releaseProducts(billID, userID, productID);
           console.log('Realeased resevations: ', reservations);
+          callback({ status: true });
           socket.broadcast
             .to(billID)
-            .emit('product-released', { userID, productID });
+            .emit('product-released', { userID, productID, productPosition });
         } catch (error: any) {
           socket.emit('reservation-error', { error: error.message });
         }

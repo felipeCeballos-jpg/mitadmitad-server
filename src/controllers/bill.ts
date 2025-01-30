@@ -93,3 +93,27 @@ export async function getBillStatus(req: Request, res: Response) {
     res.status(400).json({ success: false, error: error.message });
   }
 }
+
+export async function getProductsReserved(req: Request, res: Response) {
+  try {
+    const { id: billID } = req.params;
+
+    const bill = await Bill.findById({ _id: billID });
+    if (!bill) {
+      res.status(404).json({ success: false, error: 'Bill not found' });
+      return;
+    }
+
+    const billSession = await BillSession.findOne({ billID });
+    if (!billSession) {
+      res.status(404).json({ success: false, error: 'Bill session not found' });
+      return;
+    }
+    res.status(200).json({
+      success: true,
+      data: billSession.productReservations,
+    });
+  } catch (error: any) {
+    res.status(400).json({ success: false, error: error.message });
+  }
+}

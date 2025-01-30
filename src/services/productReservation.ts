@@ -71,7 +71,7 @@ export async function reserveProducts(
     } */
     const hasUserAlreadyReservedProduct = billSession.productReservations.some(
       (pdtr) => {
-        return pdtr.productID === product._id && pdtr.userID === userID;
+        return pdtr.productID === product._id && pdtr.reservedBy === userID;
       }
     );
 
@@ -81,7 +81,7 @@ export async function reserveProducts(
       console.log("How many times I'm here");
       billSession.productReservations.push({
         productID: product._id,
-        userID,
+        reservedBy: userID,
         quantity: product.quantity,
         reservedAt: reserveTime,
       });
@@ -95,7 +95,7 @@ export async function reserveProducts(
     // Update the quantity of the product reservation for user
     billSession.productReservations = billSession.productReservations.map(
       (pdtr) => {
-        if (pdtr.productID === product._id && pdtr.userID === userID) {
+        if (pdtr.productID === product._id && pdtr.reservedBy === userID) {
           pdtr.quantity += product.quantity;
         }
         return pdtr;
@@ -160,7 +160,7 @@ export async function releaseProducts(
 
     const hasUserAlreadyReservedProduct = billSession.productReservations.some(
       (pdtr) => {
-        return pdtr.productID === productID && pdtr.userID === userID;
+        return pdtr.productID === productID && pdtr.reservedBy === userID;
       }
     );
 
@@ -171,7 +171,7 @@ export async function releaseProducts(
     // Update the quantity of the product reservation for user and remove zero quantity reservations
     billSession.productReservations = billSession.productReservations.filter(
       (p) => {
-        if (p.userID === userID && p.productID === productID) {
+        if (p.reservedBy === userID && p.productID === productID) {
           --p.quantity;
         }
 
@@ -197,7 +197,7 @@ export async function releaseReservations(billID: string, userID: string) {
   const billSession = await BillSession.findOne({ billID });
   if (billSession && billSession.productReservations) {
     billSession.productReservations = billSession.productReservations.filter(
-      (r) => r.userID !== userID
+      (r) => r.reservedBy !== userID
     ) as ProductReservation;
     await billSession.save();
   }
