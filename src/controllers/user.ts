@@ -35,45 +35,18 @@ export async function checkUserBill(req: Request, res: Response) {
       return;
     }
 
-    const userFound = billSession.activeUsers.find(
+    /* const userFound = billSession.activeUsers.find(
       (user) => user.userID === userID
     );
 
     if (!userFound) {
       console.log('User not found');
-      res.status(404).json({ success: false, error: 'User not found' });
-      return;
-    }
+    } */
 
     const totalPaid = billSession.paymentStatus.reduce(
       (sum, payment) => sum + payment.amount,
       0
     );
-
-    const products = bill.products.map((billProduct) => {
-      const newProduct = [];
-
-      if (
-        !billSession.productReservations ||
-        billSession.productReservations.length <= 0
-      ) {
-        return newProduct.push({
-          _id: billProduct.id,
-          name: billProduct.name,
-          price: billProduct.price,
-          quantity: billProduct.quantity,
-          reserved: false,
-          reservedBy: null,
-        });
-      }
-
-      const foundProduct = billSession.productReservations.find(
-        (billSessionProduct) => billSessionProduct.productID === billProduct.id
-      );
-
-      if (!foundProduct) {
-      }
-    });
 
     const remainingAmount = Math.max(0, bill.total - totalPaid);
     const data = {
