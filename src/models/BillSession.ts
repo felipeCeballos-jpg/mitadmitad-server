@@ -23,7 +23,7 @@ const Product = new mongoose.Schema(
 
 const PaymentStatus = new mongoose.Schema({
   userID: String,
-  amount: {
+  subtotal: {
     type: Number,
     default: 0,
     validate: {
@@ -32,6 +32,27 @@ const PaymentStatus = new mongoose.Schema({
       },
       message: 'Amount must be a non-negative value.',
     },
+    require: true,
+  },
+  tip: {
+    type: Number,
+    default: 0,
+    require: true,
+  },
+  total: {
+    type: Number,
+    default: 0,
+    validate: {
+      validator: function (value: number) {
+        return value >= 0; // Ensure amount is non-negative
+      },
+      message: 'Amount must be a non-negative value.',
+    },
+    require: true,
+  },
+  mode: {
+    type: String,
+    enum: ['setAmount', 'splitBill', 'payForItems'],
     require: true,
   },
   status: {

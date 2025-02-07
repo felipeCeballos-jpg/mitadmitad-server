@@ -72,16 +72,22 @@ export async function getBillStatus(req: Request, res: Response) {
     }
 
     const totalPaid = billSession.paymentStatus.reduce(
-      (sum, payment) => sum + payment.amount,
+      (sum, payment) => sum + payment.subtotal,
       0
     );
-    const remainingAmount = Math.max(0, bill.total - totalPaid);
+
+    console.log('Total amount paid: ', totalPaid);
+    const remainingAmount = Math.max(
+      0,
+      bill.total - billSession.totalAmountPaid
+    );
+    console.log('Remaining amount: ', remainingAmount);
 
     const response = {
       billID: bill._id,
       total: bill.total,
       status: bill.status,
-      totalPaid,
+      totalAmountPaid: billSession.totalAmountPaid,
       remainingAmount,
       activeUsers: billSession.activeUsers,
       paymentStatus: billSession.paymentStatus,

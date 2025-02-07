@@ -140,17 +140,19 @@ export function socketInit(io: Server) {
     );
 
     socket.on('payment-made', async (billID) => {
+      console.log('Payment Madeeeeeeeeeeeeeeeeeeee');
+      console.log('BillID: ', billID);
       const bill = await Bill.findById(billID);
       const billSession = await BillSession.findOne({ billID }).populate(
         'billID'
       );
 
       if (billSession && billSession.billID && bill) {
-        io.to(billID).emit('bill-updated', {
+        console.log('Entreeeeeeee ajajajajjaja');
+        socket.to(billID).emit('bill-updated', {
           totalAmountPaid: billSession.totalAmountPaid,
           remainingAmount: bill.total - billSession.totalAmountPaid,
           status: bill.status,
-          paymentStatus: billSession.paymentStatus,
         });
       }
     });

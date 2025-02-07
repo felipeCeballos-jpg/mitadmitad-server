@@ -4,8 +4,24 @@ import BillSession from '../models/BillSession';
 
 export async function createUser(req: Request, res: Response) {
   try {
+    const { billID } = req.body;
+    const bill = await Bill.findById(billID);
+
+    if (!bill) {
+      res.status(404).json({ success: false, error: 'Bill not found' });
+      return;
+    }
+
+    if (bill.status === 'paid') {
+      res.status(400).json({ success: false, error: 'Bill already paid' });
+      return;
+    }
+
     const newID = crypto.randomUUID();
-    res.status(200).json({ success: true, data: { id: newID } });
+    res.status(200).json({
+      success: true,
+      data: { id: newID, billStatus: bill.status, billID: bill._id },
+    });
   } catch (error) {
     res
       .status(400)
@@ -44,7 +60,7 @@ export async function checkUserBill(req: Request, res: Response) {
     } */
 
     const totalPaid = billSession.paymentStatus.reduce(
-      (sum, payment) => sum + payment.amount,
+      (sum, payment) => sum + payment.subtotal,
       0
     );
 
