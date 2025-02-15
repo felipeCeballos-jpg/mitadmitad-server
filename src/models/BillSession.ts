@@ -1,68 +1,5 @@
 import mongoose from 'mongoose';
 
-const ProductReservations = new mongoose.Schema({
-  productID: String,
-  reservedBy: String,
-  quantity: {
-    type: Number,
-    default: 0,
-  },
-  reservedAt: {
-    type: Date,
-    required: true,
-  },
-});
-
-const Product = new mongoose.Schema(
-  {
-    productID: String,
-    quantity: Number,
-  },
-  { _id: false }
-);
-
-const PaymentStatus = new mongoose.Schema({
-  userID: String,
-  subtotal: {
-    type: Number,
-    default: 0,
-    validate: {
-      validator: function (value: number) {
-        return value >= 0; // Ensure amount is non-negative
-      },
-      message: 'Amount must be a non-negative value.',
-    },
-    require: true,
-  },
-  tip: {
-    type: Number,
-    default: 0,
-    require: true,
-  },
-  total: {
-    type: Number,
-    default: 0,
-    validate: {
-      validator: function (value: number) {
-        return value >= 0; // Ensure amount is non-negative
-      },
-      message: 'Amount must be a non-negative value.',
-    },
-    require: true,
-  },
-  mode: {
-    type: String,
-    enum: ['setAmount', 'splitBill', 'payForItems'],
-    require: true,
-  },
-  status: {
-    type: String,
-    enum: ['pending', 'paid', 'failed'],
-    default: 'pending',
-  },
-  products: [Product],
-});
-
 const ActiveUsers = new mongoose.Schema(
   {
     userID: String,
@@ -78,11 +15,6 @@ const BillSessionSchema = new mongoose.Schema({
     require: true,
   },
   activeUsers: [ActiveUsers],
-  paymentStatus: [PaymentStatus],
-  productReservations: {
-    type: [ProductReservations],
-    required: false,
-  },
   totalAmountPaid: {
     type: Number,
     default: 0,

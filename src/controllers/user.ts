@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import Bill from '../models/Bill';
 import BillSession from '../models/BillSession';
+import Payment from '../models/Payment';
 
 export async function createUser(req: Request, res: Response) {
   try {
@@ -32,8 +33,14 @@ export async function createUser(req: Request, res: Response) {
 export async function checkUserBill(req: Request, res: Response) {
   try {
     const { userID, billID } = req.params;
+    if (!userID || !billID) {
+      res
+        .status(404)
+        .json({ success: false, error: 'Some parameters are missing' });
+      return;
+    }
 
-    const bill = await Bill.findById(billID);
+    const bill = await Bill.findById(billID).exec();
     if (!bill) {
       res.status(404).json({ success: false, error: 'Bill not found' });
       return;
@@ -44,32 +51,29 @@ export async function checkUserBill(req: Request, res: Response) {
       return;
     }
 
-    // Check if the user is in the activeUsers array
-    const billSession = await BillSession.findOne({ billID });
+    const billSession = await BillSession.findOne({ billID }).exec();
     if (!billSession) {
       res.status(404).json({ success: false, error: 'Bill not found' });
       return;
     }
 
-    /* const userFound = billSession.activeUsers.find(
-      (user) => user.userID === userID
-    );
+    const payments = await Payment.find({
+      billSessionId: billSession._id,
+    }).exec();
 
-    if (!userFound) {
-      console.log('User not found');
-    } */
-
-    const totalPaid = billSession.paymentStatus.reduce(
-      (sum, payment) => sum + payment.subtotal,
+    const totalPaid = payments.reduce(
+      (sum, payment) => sum + payment.subTotal,
       0
     );
 
     const remainingAmount = Math.max(0, bill.total - totalPaid);
+
     const data = {
       _id: bill._id,
       status: bill.status,
       products: bill.products,
       total: remainingAmount,
+      totalBill: bill.total,
     };
 
     res.status(200).json({ success: true, data });

@@ -1,8 +1,8 @@
 import { Request, Response } from 'express';
 import Bill from '../models/Bill';
-import { processPayment } from '../services/payment';
-import mongoose from 'mongoose';
 import BillSession from '../models/BillSession';
+import Payment from '../models/Payment';
+import { processPayment } from '../services/payment';
 import { processSetAmountPayment } from '../services/payAmount';
 import { splitBillPayment } from '../services/splitBill';
 
@@ -91,7 +91,7 @@ type PaymentRequest = {
 };
 
 export async function makePayment(req: Request, res: Response) {
-  const session = await mongoose.startSession();
+  const session = await Payment.startSession();
   session.startTransaction();
 
   try {
@@ -108,43 +108,26 @@ export async function makePayment(req: Request, res: Response) {
     const bill = await Bill.findById(billID).session(session);
     const billSession = await BillSession.findOne({ billID }).session(session);
 
-    console.log({
-      billID,
-      userID,
-      subtotal,
-      tip,
-      total,
-      paymentType,
-      items,
-      splitInfo,
-    });
-
     if (!bill || !billSession) {
-      console.log('Bill or Bill session not found');
       throw new Error('Bill or Bill session not found');
     }
 
-    console.log('Total amount bill: ', bill.total);
-    console.log('Total amount paid: ', billSession.totalAmountPaid);
     const remainingAmount = bill.total - billSession.totalAmountPaid;
-    console.log('Remaining amount: ', remainingAmount);
 
     if (subtotal > remainingAmount) {
-      console.log('The amount is bigger than remaining amount');
       throw new Error(`The maximun amount you can pay is ${remainingAmount}`);
     }
 
     billSession.totalAmountPaid += subtotal;
-    console.log('Total amount paid: ', billSession.totalAmountPaid);
 
-    billSession.paymentStatus.push({
-      userID,
-      subtotal,
+    const payment = await Payment.create({
+      billSessionId: billSession._id,
+      userId: userID,
+      subTotal: subtotal,
       tip,
       total,
       status: 'paid',
-      mode: paymentType,
-      items: [],
+      mode: 'setAmount',
     });
 
     if (billSession.totalAmountPaid >= bill.total) {

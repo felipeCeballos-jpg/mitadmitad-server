@@ -6,6 +6,7 @@ import {
   releaseProducts,
 } from './productReservation';
 import Bill from '../models/Bill';
+import Payment from '../models/Payment';
 
 export function socketInit(io: Server) {
   io.on('connection', (socket) => {
@@ -60,11 +61,12 @@ export function socketInit(io: Server) {
         userID: string,
         status: 'pending' | 'paid' | 'failed'
       ) => {
-        const billSession = await BillSession.findOne({ billID });
+        const billSession = await BillSession.findOne({ billID }).exec();
+        const payments = await Payment.find({ billId: billID }).exec();
 
-        if (billSession) {
-          const userPayment = billSession.paymentStatus.find(
-            (payment) => payment.userID === userID
+        if (billSession && payments) {
+          const userPayment = payments.find(
+            (payment) => payment.userId === userID
           );
 
           if (userPayment) {
@@ -95,9 +97,7 @@ export function socketInit(io: Server) {
       ) => {
         console.log('Entreeee No lo puedo creerr');
         try {
-          console.log('Products from Client: ', product);
           const reservations = await reserveProducts(billID, userID, product);
-          console.log('Reservations: ', reservations);
           callback({ status: true });
           socket.broadcast.to(billID).emit('product-reserved', {
             userID,
@@ -105,7 +105,10 @@ export function socketInit(io: Server) {
             productPosition,
           });
         } catch (error: any) {
-          socket.emit('reservation-error', { error: error.message });
+          console.log('Something went wrong when reserving the product');
+          callback({ status: false, message: error.message });
+          console.log(error);
+          /* socket.to(billID).emit('reservation-error', { error: error.message }); */
         }
       }
     );
@@ -134,7 +137,7 @@ export function socketInit(io: Server) {
             .to(billID)
             .emit('product-released', { userID, productID, productPosition });
         } catch (error: any) {
-          socket.emit('reservation-error', { error: error.message });
+          socket.to(billID).emit('reservation-error', { error: error.message });
         }
       }
     );

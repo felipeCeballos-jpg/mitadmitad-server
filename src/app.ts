@@ -11,6 +11,7 @@ import { connectDB } from './config/db';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
 import { socketInit } from './services/sockets';
+import swaggerUI from 'swagger-ui-express';
 
 const app = express();
 const server = createServer(app);
@@ -25,6 +26,7 @@ const io = new Server(server, {
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(morgan('dev'));
+//app.use('/api/mitadmitad-docs', swaggerUI.serve);
 app.use(cors());
 app.use(helmet());
 
@@ -35,6 +37,7 @@ connectDB();
 app.use('/api/bills', billRouter);
 app.use('/api/payments', paymentRouter);
 app.use('/api/user', userRouter);
+//app.get('/api/mitadmitad-docs', swaggerUI.setup());
 
 // Set up Socket.IO
 socketInit(io);

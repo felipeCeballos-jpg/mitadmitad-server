@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 import Bill from '../models/Bill';
 import BillSession from '../models/BillSession';
 import { processPayment } from './payment';
+import Payment from '../models/Payment';
 
 export async function processSetAmountPayment(
   billID: string,
@@ -20,8 +21,9 @@ export async function processSetAmountPayment(
   try {
     const bill = await Bill.findById(billID).session(session);
     const billSession = await BillSession.findOne({ billID }).session(session);
+    const payments = await Payment.find({ billId: billID }).session(session);
 
-    if (!bill || !billSession) {
+    if (!bill || !billSession || !payments) {
       throw new Error('Bill or Bill session not found');
     }
 
@@ -49,11 +51,10 @@ export async function processSetAmountPayment(
     }
 
     billSession.totalAmountPaid += paymentData.amount;
-    billSession.paymentStatus.push({
+    const paymentBy = await Payment.create({
       userID,
       amount: paymentData.amount,
       status: 'paid',
-      items: [], // No specific products for set amount payment,
     });
 
     if (billSession.totalAmountPaid >= bill.total) {

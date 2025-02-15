@@ -2,10 +2,15 @@ import mongoose from 'mongoose';
 
 const Product = new mongoose.Schema({
   name: String,
-  price: Number,
+  price: {
+    type: Number,
+    default: 0,
+    required: true,
+  },
   quantity: {
     type: Number,
     default: 0,
+    min: 0,
     require: true,
   },
 });
