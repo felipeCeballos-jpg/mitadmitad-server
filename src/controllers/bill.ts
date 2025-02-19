@@ -141,7 +141,7 @@ export async function getProductsReserved(req: Request, res: Response) {
     }
 
     const productsReserved = await ProductReservation.find({
-      billId: billID,
+      billSessionId: billSession._id,
     }).exec();
 
     res.status(200).json({

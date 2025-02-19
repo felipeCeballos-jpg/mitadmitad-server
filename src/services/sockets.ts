@@ -7,6 +7,8 @@ import {
 } from './productReservation';
 import Bill from '../models/Bill';
 import Payment from '../models/Payment';
+import ProductReservation from '../models/ProductReservation';
+import { logger } from '../utils/logger';
 
 export function socketInit(io: Server) {
   io.on('connection', (socket) => {
@@ -73,7 +75,9 @@ export function socketInit(io: Server) {
             userPayment.status = status;
             await billSession.save();
 
-            io.to(billID).emit('payment-status-updated', { userID, status });
+            socket
+              .to(billID)
+              .emit('payment-status-updated', { userID, status });
           }
         }
       }
@@ -98,6 +102,7 @@ export function socketInit(io: Server) {
         console.log('Entreeee No lo puedo creerr');
         try {
           const reservations = await reserveProducts(billID, userID, product);
+          console.log('Reservationsssssss: ', reservations);
           callback({ status: true });
           socket.broadcast.to(billID).emit('product-reserved', {
             userID,
@@ -106,6 +111,7 @@ export function socketInit(io: Server) {
           });
         } catch (error: any) {
           console.log('Something went wrong when reserving the product');
+          logger.error(error);
           callback({ status: false, message: error.message });
           console.log(error);
           /* socket.to(billID).emit('reservation-error', { error: error.message }); */
@@ -137,6 +143,7 @@ export function socketInit(io: Server) {
             .to(billID)
             .emit('product-released', { userID, productID, productPosition });
         } catch (error: any) {
+          logger.error(error);
           socket.to(billID).emit('reservation-error', { error: error.message });
         }
       }
@@ -151,12 +158,22 @@ export function socketInit(io: Server) {
       );
 
       if (billSession && billSession.billID && bill) {
-        console.log('Entreeeeeeee ajajajajjaja');
-        socket.to(billID).emit('bill-updated', {
-          totalAmountPaid: billSession.totalAmountPaid,
-          remainingAmount: bill.total - billSession.totalAmountPaid,
-          status: bill.status,
-        });
+        try {
+          const productsReserved = await ProductReservation.find({
+            billSessionId: billSession._id,
+          });
+
+          console.log('Entreeeeeeee ajajajajjaja');
+          socket.to(billID).emit('bill-updated', {
+            totalAmountPaid: billSession.totalAmountPaid,
+            remainingAmount: bill.total - billSession.totalAmountPaid,
+            status: bill.status,
+            productsReserved,
+          });
+        } catch (error) {
+          logger.error(error);
+          console.log('Error while updating the bill');
+        }
       }
     });
 

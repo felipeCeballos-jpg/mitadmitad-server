@@ -28,13 +28,14 @@ export async function reserveProducts(
     const reserveTime = new Date();
 
     if (!billSession || !bill) {
-      throw new Error('Bill or session not found');
+      throw new Error('Bill is not found');
     }
 
     const productsReserved = await ProductReservation.find({
       billSessionId: billSession._id,
       reservedBy: userID,
     }).session(session);
+
     const payments = await Payment.find({
       billSessionId: billSession._id,
     }).session(session);
@@ -54,6 +55,7 @@ export async function reserveProducts(
       (sum, payment) => sum + payment.subTotal,
       0
     );
+    console.log('Total Bill Paid: ', totalBillPaid);
     /* const totalOfProductsReserved = productsReserved.reduce(
     (sum, product) => sum + product.quantity * product.pe,
       0

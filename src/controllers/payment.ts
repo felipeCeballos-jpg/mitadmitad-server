@@ -5,6 +5,9 @@ import Payment from '../models/Payment';
 import { processPayment } from '../services/payment';
 import { processSetAmountPayment } from '../services/payAmount';
 import { splitBillPayment } from '../services/splitBill';
+import ProductReservation from '../models/ProductReservation';
+import { logger } from '../utils/logger';
+import { MongoError } from 'mongodb';
 
 /* export async function makePayment(req: Request, res: Response) {
   try {
@@ -127,7 +130,20 @@ export async function makePayment(req: Request, res: Response) {
       tip,
       total,
       status: 'paid',
-      mode: 'setAmount',
+      mode: paymentType,
+    });
+
+    if (paymentType === 'payForItems') {
+      await ProductReservation.find({
+        billSessionId: billSession._id,
+        reservedBy: userID,
+      }).updateMany({
+        hasPaid: true,
+      });
+    }
+
+    const productsReserved = await ProductReservation.find({
+      billSessionId: billSession._id,
     });
 
     if (billSession.totalAmountPaid >= bill.total) {
@@ -144,12 +160,45 @@ export async function makePayment(req: Request, res: Response) {
     res.status(200).json({
       success: true,
       data: {
+        billStatus: bill.status,
         amountPaid: total,
         remainingAmount: bill.total - billSession.totalAmountPaid,
+        productsReserved,
       },
     });
   } catch (error: any) {
+    if (
+      error instanceof MongoError &&
+      error.hasErrorLabel('UnknownTransactionCommitResult')
+    ) {
+      // add your logic to retry or handle the error
+      console.log(
+        'An error occured in the unknown transaction commit result:',
+        error
+      );
+      res.status(400).json({
+        success: false,
+        error: 'Something went wrong, please try again',
+      });
+    } else if (
+      error instanceof MongoError &&
+      error.hasErrorLabel('TransientTransactionError')
+    ) {
+      // add your logic to retry or handle the error
+      console.log('An error occured in the transient transaction:', error);
+
+      res.status(400).json({
+        success: false,
+        error: 'Something went wrong, please try again',
+      });
+    } else {
+      console.log(
+        'An error occured in the transaction, performing a data rollback:' +
+          error
+      );
+      res.status(400).json({ success: false, error: error.message });
+    }
     console.log('Error from makePayment: ', error);
-    res.status(400).json({ success: false, error: error.message });
+    logger.error(error);
   }
 }

@@ -23,12 +23,16 @@ const io = new Server(server, {
 });
 
 // Middleware
+app.use(
+  helmet({
+    xFrameOptions: { action: 'sameorigin' },
+  })
+);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(morgan('dev'));
 //app.use('/api/mitadmitad-docs', swaggerUI.serve);
 app.use(cors());
-app.use(helmet());
 
 // Connect to DB
 connectDB();
