@@ -7,7 +7,7 @@ import { generateQRCode } from '../services/qrcode';
 
 interface Product {
   name: string;
-  price: number;
+  pricePerUnit: number;
   quantity: number;
 }
 
@@ -22,7 +22,8 @@ export async function createBill(req: Request, res: Response) {
 
     // Get the total of the bill
     const total = products.reduce(
-      (sum: number, product: Product) => sum + product.price * product.quantity,
+      (sum: number, product: Product) =>
+        sum + product.pricePerUnit * product.quantity,
       0
     );
 

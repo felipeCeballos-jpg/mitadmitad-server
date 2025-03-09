@@ -70,7 +70,7 @@ export async function reserveProducts(
         return 0;
       }
 
-      return prt.quantity * product.price;
+      return prt.quantity * product.pricePerUnit;
     });
 
     console.log('Total of products reserved: ', totalOfProductsReserved);
@@ -83,7 +83,7 @@ export async function reserveProducts(
 
     console.log('Total Bill Paid: ', totalBillPaid);
     const totalBillPaidFuture =
-      billProduct.price + totalBillPaid + totalProductsReserved;
+      billProduct.pricePerUnit + totalBillPaid + totalProductsReserved;
     console.log('Total Bill Paid Future: ', totalBillPaidFuture);
     const remainingAmount = Math.max(0, bill.total - totalBillPaidFuture);
     console.log('Remaining amount: ', remainingAmount);

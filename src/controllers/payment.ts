@@ -140,17 +140,24 @@ export async function makePayment(req: Request, res: Response) {
       }).updateMany({
         hasPaid: true,
       });
+    } else {
+      await ProductReservation.find({
+        billSessionId: billSession._id,
+        reservedBy: userID,
+      }).deleteMany({
+        hasPaid: false,
+      });
     }
-
-    const productsReserved = await ProductReservation.find({
-      billSessionId: billSession._id,
-    });
 
     if (billSession.totalAmountPaid >= bill.total) {
       bill.status = 'paid';
     } else {
       bill.status = 'partially_paid';
     }
+
+    const productsReserved = await ProductReservation.find({
+      billSessionId: billSession._id,
+    });
 
     await bill.save({ session });
     await billSession.save({ session });

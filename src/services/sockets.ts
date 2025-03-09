@@ -12,6 +12,13 @@ import { logger } from '../utils/logger';
 
 export function socketInit(io: Server) {
   io.on('connection', (socket) => {
+    if (socket.recovered) {
+      // recovery was successful: socket.id, socket.rooms and socket.data were restored
+      logger.info('Recovered socket: ', socket.id);
+    } else {
+      logger.error("Can't recover socket: ", socket.id);
+      // new or unrecoverable session
+    }
     console.log('Connection: ', socket.id);
     socket.on('join-bill', async (billID: string, userID: string) => {
       socket.join(billID);

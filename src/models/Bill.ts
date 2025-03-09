@@ -2,7 +2,7 @@ import mongoose from 'mongoose';
 
 const Product = new mongoose.Schema({
   name: String,
-  price: {
+  pricePerUnit: {
     type: Number,
     default: 0,
     required: true,

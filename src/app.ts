@@ -12,11 +12,17 @@ import { createServer } from 'http';
 import { Server } from 'socket.io';
 import { socketInit } from './services/sockets';
 import swaggerUI from 'swagger-ui-express';
+import ExpressMongoSanitize from 'express-mongo-sanitize';
 
 const app = express();
 const server = createServer(app);
 const io = new Server(server, {
-  connectionStateRecovery: {},
+  connectionStateRecovery: {
+    // the backup duration of the sessions and the packets
+    maxDisconnectionDuration: 2 * 60 * 1000,
+    // whether to skip middlewares upon successful recovery
+    skipMiddlewares: true,
+  },
   cors: {
     origin: '*',
   },
@@ -33,6 +39,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use(morgan('dev'));
 //app.use('/api/mitadmitad-docs', swaggerUI.serve);
 app.use(cors());
+app.use(ExpressMongoSanitize());
 
 // Connect to DB
 connectDB();
