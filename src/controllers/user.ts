@@ -35,7 +35,6 @@ export async function checkUserBill(req: Request, res: Response) {
   try {
     const { userID, billID } = req.params;
 
-    console.log(req.params);
     if (!userID || !billID) {
       res
         .status(404)

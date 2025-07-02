@@ -127,8 +127,6 @@ export async function makePayment(req: Request, res: Response) {
     }
 
     const remainingAmount = bill.total - billSession.totalAmountPaid;
-    console.log('Remaining amount: ', remainingAmount);
-    console.log('Subtotal: ', subtotal);
 
     if (subtotal > remainingAmount) {
       throw new Error(`The maximun amount you can pay is ${remainingAmount}`);

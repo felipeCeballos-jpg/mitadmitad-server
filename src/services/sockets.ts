@@ -58,13 +58,10 @@ export function socketInit(io: Server) {
           },
         });
 
-        console.log({ billID, userID, products });
-
         const billSession = await BillSession.findOne({
           billID: billID,
         }).updateOne({ $pull: { activeUsers: { userID: userID } } });
 
-        console.log({ billSession });
         if (billSession && products) {
           io.to(billID).emit('user-left', {
             userID,
@@ -120,10 +117,8 @@ export function socketInit(io: Server) {
         },
         callback
       ) => {
-        console.log('Entreeee No lo puedo creerr');
         try {
           const reservations = await reserveProducts(billID, userID, product);
-          console.log('Reservationsssssss: ', reservations);
 
           callback({ status: true });
           socket.broadcast.to(billID).emit('product-reserved', {
@@ -174,8 +169,6 @@ export function socketInit(io: Server) {
     );
 
     socket.on('payment-made', async (billID, userID) => {
-      console.log('Payment Madeeeeeeeeeeeeeeeeeeee');
-      console.log('BillID: ', billID);
       const bill = await Bill.findById(billID);
       const billSession = await BillSession.findOne({ billID }).populate(
         'billID'
@@ -187,7 +180,6 @@ export function socketInit(io: Server) {
             return p.reservedBy === userID;
           });
 
-          console.log('Entreeeeeeee ajajajajjaja');
           socket.to(billID).emit('bill-updated', {
             totalAmountPaid: billSession.totalAmountPaid,
             remainingAmount: bill.total - billSession.totalAmountPaid,

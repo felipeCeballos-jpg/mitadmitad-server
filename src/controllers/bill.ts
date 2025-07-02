@@ -131,12 +131,10 @@ export async function getBillStatus(req: Request, res: Response) {
       0
     );
 
-    console.log('Total amount paid: ', totalPaid);
     const remainingAmount = Math.max(
       0,
       bill.total - billSession.totalAmountPaid
     );
-    console.log('Remaining amount: ', remainingAmount);
 
     const response = {
       billID: bill._id,

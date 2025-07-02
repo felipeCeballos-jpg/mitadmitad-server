@@ -41,8 +41,6 @@ export async function reserveProducts(
       return item._id.toString() === product._id;
     });
 
-    console.log('Bill product: ', billProduct);
-
     if (!billProduct) {
       throw new Error(`Product ${product._id} not found in the bill`);
     }
@@ -51,17 +49,15 @@ export async function reserveProducts(
       (sum, payment) => sum + payment.subTotal,
       0
     );
-    console.log('Total Bill Paid: ', totalBillPaid);
+
     /* const totalOfProductsReserved = productsReserved.reduce(
     (sum, product) => sum + product.quantity * product.pe,
       0
     ); */
 
-    console.log('Total Bill Paid: ', totalBillPaid);
     const totalBillPaidFuture = billProduct.pricePerUnit + totalBillPaid;
-    console.log('Total Bill Paid Future: ', totalBillPaidFuture);
     const remainingAmount = Math.max(0, bill.total - totalBillPaidFuture);
-    console.log('Remaining amount: ', remainingAmount);
+
     if (bill.total <= totalBillPaidFuture) {
       throw new Error(
         `The ${billProduct.name} product cost more than the current bill total`
@@ -71,8 +67,6 @@ export async function reserveProducts(
     const hasUserAlreadyReservedProduct = bill.products.find((p) => {
       return p.reservedBy === userID && p._id.toString() === product._id;
     });
-
-    console.log({ hasUserAlreadyReservedProduct });
 
     if (!hasUserAlreadyReservedProduct) {
       const _product = await Bill.findOneAndUpdate(
@@ -87,8 +81,6 @@ export async function reserveProducts(
           },
         }
       );
-
-      console.log('Product updated: ', { _product });
 
       if (!_product) {
         throw Error("We couldn't save the rsservation, please try again");
