@@ -15,11 +15,10 @@ export function socketInit(io: Server) {
     if (socket.recovered) {
       // recovery was successful: socket.id, socket.rooms and socket.data were restored
       logger.info('Recovered socket: ', socket.id);
-    } else {
+    } /* else {
       logger.error("Can't recover socket: ", socket.id);
-      // new or unrecoverable session
-    }
-    console.log('Connection: ', socket.id);
+    } */
+
     socket.on('join-bill', async (billID: string, userID: string) => {
       socket.join(billID);
 
@@ -97,12 +96,10 @@ export function socketInit(io: Server) {
           billID,
           userID,
           product,
-          productPosition,
         }: {
           billID: string;
           userID: string;
-          product: { _id: string; quantity: number };
-          productPosition: number;
+          product: { productID: string; _id: string; quantity: number };
         },
         callback
       ) => {
@@ -110,11 +107,12 @@ export function socketInit(io: Server) {
         try {
           const reservations = await reserveProducts(billID, userID, product);
           console.log('Reservationsssssss: ', reservations);
+
           callback({ status: true });
           socket.broadcast.to(billID).emit('product-reserved', {
             userID,
-            productID: product._id,
-            productPosition,
+            _id: product._id,
+            productID: product.productID,
           });
         } catch (error: any) {
           console.log('Something went wrong when reserving the product');
@@ -132,23 +130,25 @@ export function socketInit(io: Server) {
         {
           billID,
           userID,
-          productID,
-          productPosition,
+          product,
         }: {
           billID: string;
           userID: string;
-          productID: string;
-          productPosition: number;
+          product: {
+            productID: string;
+            _id: string;
+          };
         },
         callback
       ) => {
         try {
-          const reservations = await releaseProducts(billID, userID, productID);
-          console.log('Realeased resevations: ', reservations);
+          await releaseProducts(billID, userID, product);
           callback({ status: true });
-          socket.broadcast
-            .to(billID)
-            .emit('product-released', { userID, productID, productPosition });
+          socket.broadcast.to(billID).emit('product-released', {
+            userID,
+            _id: product._id,
+            productID: product.productID,
+          });
         } catch (error: any) {
           logger.error(error);
           socket.to(billID).emit('reservation-error', { error: error.message });
@@ -156,7 +156,7 @@ export function socketInit(io: Server) {
       }
     );
 
-    socket.on('payment-made', async (billID) => {
+    socket.on('payment-made', async (billID, userID) => {
       console.log('Payment Madeeeeeeeeeeeeeeeeeeee');
       console.log('BillID: ', billID);
       const bill = await Bill.findById(billID);
@@ -166,8 +166,8 @@ export function socketInit(io: Server) {
 
       if (billSession && billSession.billID && bill) {
         try {
-          const productsReserved = await ProductReservation.find({
-            billSessionId: billSession._id,
+          const productsReserved = bill.products.filter((p) => {
+            return p.reservedBy === userID;
           });
 
           console.log('Entreeeeeeee ajajajajjaja');
@@ -208,6 +208,10 @@ export function socketInit(io: Server) {
           });
         }
       }
+    });
+
+    socket.on('connect_error', (err) => {
+      console.log(`connect_error due to ${err.message}`);
     });
   });
 }

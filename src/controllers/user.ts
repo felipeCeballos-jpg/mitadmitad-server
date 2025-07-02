@@ -19,6 +19,7 @@ export async function createUser(req: Request, res: Response) {
     }
 
     const newID = crypto.randomUUID();
+
     res.status(200).json({
       success: true,
       data: { id: newID, billStatus: bill.status, billID: bill._id },
@@ -33,6 +34,8 @@ export async function createUser(req: Request, res: Response) {
 export async function checkUserBill(req: Request, res: Response) {
   try {
     const { userID, billID } = req.params;
+
+    console.log(req.params);
     if (!userID || !billID) {
       res
         .status(404)

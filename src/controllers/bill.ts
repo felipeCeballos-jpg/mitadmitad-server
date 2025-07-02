@@ -4,44 +4,58 @@ import BillSession from '../models/BillSession';
 import ProductReservation from '../models/ProductReservation';
 import Payment from '../models/Payment';
 import { generateQRCode } from '../services/qrcode';
-
-interface Product {
-  name: string;
-  pricePerUnit: number;
-  quantity: number;
-}
+import { validateCreateBill, validateGetBillByID } from '../utils/validations';
+import Product from '../models/Product';
+import { getProducts, ProductDB } from '../utils/util';
+import { Schema } from 'mongoose';
 
 export async function createBill(req: Request, res: Response) {
   try {
     const { restaurantID, tableNumber, products } = req.body;
+    const validate = validateCreateBill(req.body);
 
-    if (!restaurantID || tableNumber <= 0 || products.length === 0) {
-      res.status(400).json({ error: 'Missing required fields.' });
+    if (!validate.success) {
+      console.log(validate.error.message);
+      res.status(400).json({ error: JSON.stringify(validate.error.message) });
       return;
     }
 
+    let _products = await getProducts(products);
+
+    if (!_products)
+      throw Error('Something is wrong with the products - Create Bill');
+
     // Get the total of the bill
-    const total = products.reduce(
-      (sum: number, product: Product) =>
-        sum + product.pricePerUnit * product.quantity,
-      0
-    );
+    const total = _products.reduce((sum: number, product) => {
+      return sum + product.pricePerUnit;
+    }, 0);
 
     // Creta an instance of the bill with the user request
     const bill = await Bill.create({
       restaurantID,
       tableNumber,
-      products,
+      products: _products,
       total,
     });
-
-    console.log('Bill: ', bill);
 
     const qrCode = await generateQRCode(bill._id.toString());
     bill.qrCode = qrCode;
     await bill.save();
 
-    res.status(200).json({ success: true, data: bill });
+    res.status(200).json({
+      success: true,
+      data: {
+        _id: bill._id,
+        restaurantID: bill.restaurantID,
+        tableNumber: bill.tableNumber,
+        total,
+        status: bill.status,
+        products: _products,
+        qrCode: bill.qrCode,
+        createdAt: bill.createdAt,
+      },
+    });
+
     // TODO: Fix the err type
   } catch (err: any) {
     res.status(400).json({ success: false, error: err.message });
@@ -50,6 +64,15 @@ export async function createBill(req: Request, res: Response) {
 
 export async function getBillByID(req: Request, res: Response) {
   try {
+    const validate = validateGetBillByID(req.params.id);
+
+    if (!validate.success) {
+      res.status(400).json({
+        error: 'The bill id provided is invalid, please insert a valid bill id',
+      });
+      return;
+    }
+
     const bill = await Bill.findById(req.params.id);
 
     if (!bill) {
@@ -65,6 +88,14 @@ export async function getBillByID(req: Request, res: Response) {
 export async function getBillStatus(req: Request, res: Response) {
   try {
     const { id: billID } = req.params;
+    const validate = validateGetBillByID(billID);
+
+    if (!validate.success) {
+      res.status(400).json({
+        error: 'The bill id provided is invalid, please insert a valid bill id',
+      });
+      return;
+    }
 
     const bill = await Bill.findById({ _id: billID }).exec();
 
@@ -127,6 +158,14 @@ export async function getBillStatus(req: Request, res: Response) {
 export async function getProductsReserved(req: Request, res: Response) {
   try {
     const { id: billID } = req.params;
+
+    const validate = validateGetBillByID(billID);
+    if (!validate.success) {
+      res.status(400).json({
+        error: 'The bill id provided is invalid, please insert a valid bill id',
+      });
+      return;
+    }
 
     if (!billID) {
       res.status(404).json({ success: false, error: 'Missing parameter' });

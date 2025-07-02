@@ -1,10 +1,10 @@
-import mongoose, { SchemaType } from 'mongoose';
-import Product from './Product';
+import mongoose, { Schema } from 'mongoose';
 
 interface ProductReservationType {
   billSessionId: object;
-  productId: object;
+  productBillId: object;
   quantity: number;
+  position: number[];
   hasPaid: boolean;
   reservedBy: string;
   reservedAt: Date;
@@ -16,15 +16,19 @@ const ProductReservationSchema = new mongoose.Schema<ProductReservationType>({
     ref: 'BillSession',
     required: true,
   },
-  productId: {
+  productBillId: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'Product',
     required: true,
   },
   quantity: {
     type: Number,
     default: 1,
     min: 1,
+    required: true,
+  },
+  position: {
+    type: [Schema.Types.Number],
+    min: 0,
     required: true,
   },
   hasPaid: {

@@ -10,7 +10,7 @@ const billRouter = express.Router();
 
 billRouter.post('/', createBill);
 billRouter.get('/:id', getBillByID);
-billRouter.get('/status/:id', getBillStatus);
-billRouter.get('/productsReserved/:id', getProductsReserved);
+billRouter.get('/:id/status', getBillStatus);
+billRouter.get('/:id/productsReserved', getProductsReserved);
 
 export default billRouter;

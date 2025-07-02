@@ -8,6 +8,7 @@ import { splitBillPayment } from '../services/splitBill';
 import ProductReservation from '../models/ProductReservation';
 import { logger } from '../utils/logger';
 import { MongoError } from 'mongodb';
+import { validateCreatePayment } from '../utils/validations';
 
 /* export async function makePayment(req: Request, res: Response) {
   try {
@@ -86,9 +87,9 @@ type PaymentRequest = {
   tip: number;
   total: number;
   paymentType: 'setAmount' | 'splitBill' | 'payForItems';
-  items?: { itemID: string; quantity: number }[];
+  products?: { productID: string; quantity: number; position: number }[];
   splitInfo?: {
-    totalPeope: number;
+    totalPeople: number;
     peoplePaying: number;
   };
 };
@@ -105,9 +106,19 @@ export async function makePayment(req: Request, res: Response) {
       tip,
       total,
       paymentType,
-      items,
+      products,
       splitInfo,
     }: PaymentRequest = req.body;
+
+    const validateBody = validateCreatePayment(req.body);
+    if (!validateBody.success) {
+      console.log(validateBody.error.message);
+      res.status(400).json({
+        error: 'Some went wrong or something is missing',
+      });
+      return;
+    }
+
     const bill = await Bill.findById(billID).session(session);
     const billSession = await BillSession.findOne({ billID }).session(session);
 
@@ -116,6 +127,8 @@ export async function makePayment(req: Request, res: Response) {
     }
 
     const remainingAmount = bill.total - billSession.totalAmountPaid;
+    console.log('Remaining amount: ', remainingAmount);
+    console.log('Subtotal: ', subtotal);
 
     if (subtotal > remainingAmount) {
       throw new Error(`The maximun amount you can pay is ${remainingAmount}`);
@@ -134,19 +147,28 @@ export async function makePayment(req: Request, res: Response) {
     });
 
     if (paymentType === 'payForItems') {
-      await ProductReservation.find({
-        billSessionId: billSession._id,
-        reservedBy: userID,
-      }).updateMany({
-        hasPaid: true,
-      });
+      await Bill.find({
+        _id: billID,
+        'products.reservedBy': userID,
+      })
+        .updateMany({
+          $set: {
+            'products.$.hasPaid': true,
+          },
+        })
+        .session(session);
     } else {
-      await ProductReservation.find({
-        billSessionId: billSession._id,
-        reservedBy: userID,
-      }).deleteMany({
-        hasPaid: false,
-      });
+      await Bill.find({
+        _id: billID,
+        'products.reservedBy': userID,
+      })
+        .updateMany({
+          $set: {
+            'products.$.reservedBy': null,
+            'products.$.reservedAt': null,
+          },
+        })
+        .session(session);
     }
 
     if (billSession.totalAmountPaid >= bill.total) {
@@ -154,10 +176,6 @@ export async function makePayment(req: Request, res: Response) {
     } else {
       bill.status = 'partially_paid';
     }
-
-    const productsReserved = await ProductReservation.find({
-      billSessionId: billSession._id,
-    });
 
     await bill.save({ session });
     await billSession.save({ session });
@@ -170,10 +188,12 @@ export async function makePayment(req: Request, res: Response) {
         billStatus: bill.status,
         amountPaid: total,
         remainingAmount: bill.total - billSession.totalAmountPaid,
-        productsReserved,
+        products: bill.products,
       },
     });
   } catch (error: any) {
+    await session.abortTransaction();
+
     if (
       error instanceof MongoError &&
       error.hasErrorLabel('UnknownTransactionCommitResult')
@@ -207,5 +227,7 @@ export async function makePayment(req: Request, res: Response) {
     }
     console.log('Error from makePayment: ', error);
     logger.error(error);
+  } finally {
+    session.endSession();
   }
 }

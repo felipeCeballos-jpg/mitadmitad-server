@@ -1,8 +1,12 @@
 import mongoose from 'mongoose';
 
-const ProductSchema = new mongoose.Schema({
+export const ProductSchema = new mongoose.Schema({
   name: String,
-  pricePerUnit: Number,
+  pricePerUnit: {
+    type: Number,
+    default: 0,
+    required: true,
+  },
 });
 
 export default mongoose.model('Product', ProductSchema);

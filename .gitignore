@@ -7,6 +7,7 @@ node_modules
 dist
 *.local
 .env
+.nodemon.json
 
 # Editor directories and files
 .vscode/

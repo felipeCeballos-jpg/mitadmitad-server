@@ -11,8 +11,8 @@ import { connectDB } from './config/db';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
 import { socketInit } from './services/sockets';
-import swaggerUI from 'swagger-ui-express';
 import ExpressMongoSanitize from 'express-mongo-sanitize';
+import productRouter from './routes/product';
 
 const app = express();
 const server = createServer(app);
@@ -26,9 +26,11 @@ const io = new Server(server, {
   cors: {
     origin: '*',
   },
+  //transports: ['polling', 'websocket', 'webtransport'],
 });
 
 // Middleware
+app.disable('x-powered-by');
 app.use(
   helmet({
     xFrameOptions: { action: 'sameorigin' },
@@ -45,10 +47,15 @@ app.use(ExpressMongoSanitize());
 connectDB();
 
 // Routes
-app.use('/api/bills', billRouter);
-app.use('/api/payments', paymentRouter);
-app.use('/api/user', userRouter);
+app.use('/api/v1/bill', billRouter);
+app.use('/api/v1/payment', paymentRouter);
+app.use('/api/v1/user', userRouter);
+app.use('/api/v1/product', productRouter);
 //app.get('/api/mitadmitad-docs', swaggerUI.setup());
+
+app.use((req, res) => {
+  res.status(404).json({ success: false, error: 'Not found' });
+});
 
 // Set up Socket.IO
 socketInit(io);

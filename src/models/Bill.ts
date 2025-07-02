@@ -1,17 +1,35 @@
 import mongoose from 'mongoose';
 
-const Product = new mongoose.Schema({
-  name: String,
-  pricePerUnit: {
-    type: Number,
-    default: 0,
+const ProductBill = new mongoose.Schema({
+  productID: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Product',
+    require: true,
+  },
+  name: {
+    type: mongoose.Schema.Types.String,
+    ref: 'Product',
     required: true,
   },
-  quantity: {
-    type: Number,
-    default: 0,
-    min: 0,
-    require: true,
+  pricePerUnit: {
+    type: mongoose.Schema.Types.Number,
+    ref: 'Product',
+    required: true,
+  },
+  hasPaid: {
+    type: Boolean,
+    default: false,
+    required: false,
+  },
+  reservedBy: {
+    type: String || null,
+    default: null,
+    required: false,
+  },
+  reservedAt: {
+    type: Date || null,
+    default: null,
+    required: false,
   },
 });
 
@@ -24,7 +42,7 @@ const BillSchema = new mongoose.Schema({
     type: String,
     require: false,
   },
-  products: [Product],
+  products: [ProductBill],
   total: {
     type: Number,
     default: 0,

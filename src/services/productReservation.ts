@@ -1,8 +1,9 @@
-import { Types, Document } from 'mongoose';
+import { Types, Document, Schema } from 'mongoose';
 import Bill from '../models/Bill';
 import BillSession from '../models/BillSession';
 import ProductReservation from '../models/ProductReservation';
 import Payment from '../models/Payment';
+import Product from '../models/Product';
 
 const RESERVATION_TIMEOUT = 10 * 600 * 1000; // 10 minutes in miliseconds
 type ProductReservation = Types.DocumentArray<
@@ -17,9 +18,9 @@ type ProductReservation = Types.DocumentArray<
 export async function reserveProducts(
   billID: string,
   userID: string,
-  product: { _id: string; quantity: number }
+  product: { productID: string; _id: string; quantity: number }
 ) {
-  const session = await ProductReservation.startSession();
+  const session = await Bill.startSession();
   session.startTransaction();
 
   try {
@@ -30,11 +31,6 @@ export async function reserveProducts(
     if (!billSession || !bill) {
       throw new Error('Bill is not found');
     }
-
-    const productsReserved = await ProductReservation.find({
-      billSessionId: billSession._id,
-      reservedBy: userID,
-    }).session(session);
 
     const payments = await Payment.find({
       billSessionId: billSession._id,
@@ -60,134 +56,51 @@ export async function reserveProducts(
     (sum, product) => sum + product.quantity * product.pe,
       0
     ); */
-    console.log('Products reserved: ', productsReserved);
-    const totalOfProductsReserved = productsReserved.map((prt) => {
-      let product = bill.products.find((item) => {
-        return item._id.toString() === prt.productId.toString();
-      });
-
-      if (!product) {
-        return 0;
-      }
-
-      return prt.quantity * product.pricePerUnit;
-    });
-
-    console.log('Total of products reserved: ', totalOfProductsReserved);
-
-    const totalProductsReserved = totalOfProductsReserved.reduce(
-      (sum, num) => sum + num,
-      0
-    );
-    console.log('TPR: ', totalProductsReserved);
 
     console.log('Total Bill Paid: ', totalBillPaid);
-    const totalBillPaidFuture =
-      billProduct.pricePerUnit + totalBillPaid + totalProductsReserved;
+    const totalBillPaidFuture = billProduct.pricePerUnit + totalBillPaid;
     console.log('Total Bill Paid Future: ', totalBillPaidFuture);
     const remainingAmount = Math.max(0, bill.total - totalBillPaidFuture);
     console.log('Remaining amount: ', remainingAmount);
     if (bill.total <= totalBillPaidFuture) {
       throw new Error(
-        `You aren't allowed to reserve more products because you'll more than you should`
+        `The ${billProduct.name} product cost more than the current bill total`
       );
     }
 
-    if (productsReserved.length <= 0) {
-      console.log("How many times I'm here");
-      const newReservation = new ProductReservation({
-        billSessionId: billSession._id,
-        productId: product._id,
-        reservedBy: userID,
-        quantity: product.quantity,
-        reservedAt: reserveTime,
-      });
-
-      await newReservation.save({ session });
-      await session.commitTransaction();
-
-      return newReservation;
-    }
-
-    const hasUserAlreadyReservedProduct = productsReserved.find((pdtr) => {
-      return pdtr.productId.toString() === product._id;
+    const hasUserAlreadyReservedProduct = bill.products.find((p) => {
+      return p.reservedBy === userID && p._id.toString() === product._id;
     });
 
-    console.log('Has product storage: ', hasUserAlreadyReservedProduct);
+    console.log({ hasUserAlreadyReservedProduct });
 
     if (!hasUserAlreadyReservedProduct) {
-      console.log("How many times I'm here hasUserAlreadyReservedProduct");
-      const newReservation = new ProductReservation({
-        billSessionId: billSession._id,
-        productId: product._id,
-        reservedBy: userID,
-        quantity: product.quantity,
-        reservedAt: reserveTime,
-      });
-
-      await newReservation.save({ session });
-      await session.commitTransaction();
-
-      return newReservation;
-    }
-
-    const reservedQuantity = [hasUserAlreadyReservedProduct].reduce(
-      (sum, reservation) => sum + reservation.quantity,
-      0
-    );
-
-    const availableQuantity = billProduct.quantity - reservedQuantity;
-
-    if (availableQuantity < product.quantity) {
-      throw new Error(
-        `Not enough quantity available for the product ${billProduct.name}`
+      const _product = await Bill.findOneAndUpdate(
+        {
+          _id: billID,
+          'products._id': product._id,
+        },
+        {
+          $set: {
+            'products.$.reservedBy': userID,
+            'products.$.reservedAt': reserveTime,
+          },
+        }
       );
+
+      console.log('Product updated: ', { _product });
+
+      if (!_product) {
+        throw Error("We couldn't save the rsservation, please try again");
+      }
+
+      await session.commitTransaction();
+      //return _product;
     }
-
-    // Update the quantity of the product reservation for user
-    const quantityUpdated = await ProductReservation.findOneAndUpdate(
-      {
-        billSessionId: billSession._id,
-        productId: product._id,
-        reservedBy: userID,
-      },
-      {
-        quantity: hasUserAlreadyReservedProduct.quantity + product.quantity,
-      },
-      {
-        new: true,
-        session,
-      }
-    );
-
-    console.log('Quantity updated: ', quantityUpdated);
-
-    /* // Remove expired reservations
-    billSession.productReservations = billSession.productReservations.filter(
-      (reservation) => {
-        console.log('ReservedAt Time: ', reservation.reservedAt.getTime());
-        console.log('Reserve Time: ', reserveTime.getTime());
-        const timeDifference =
-          reserveTime.getTime() - reservation.reservedAt.getTime();
-        console.log('Time difference: ', timeDifference);
-        console.log(
-          "Check if it's expired: ",
-          timeDifference > RESERVATION_TIMEOUT
-        );
-        return timeDifference < RESERVATION_TIMEOUT;
-      }
-    ) as ProductReservation;
-
-    console.log('Removed reservations: ', billSession.productReservations); */
-
-    /* // Remove when aren't products reserved
-    billSession.productReservations = billSession.productReservations.filter(
-      (reservation) => reservation.quantity > 0
-    ) as ProductReservation; */
 
     await session.commitTransaction();
 
-    return quantityUpdated;
+    //return quantityUpdated;
   } catch (error) {
     await session.abortTransaction();
     throw error;
@@ -200,9 +113,12 @@ export async function reserveProducts(
 export async function releaseProducts(
   billID: string,
   userID: string,
-  productID: string
+  product: {
+    _id: string;
+    productID: string;
+  }
 ) {
-  const session = await ProductReservation.startSession();
+  const session = await Bill.startSession();
   session.startTransaction();
 
   try {
@@ -213,50 +129,25 @@ export async function releaseProducts(
       throw new Error('Bill or session not found');
     }
 
-    const productsReserved = await ProductReservation.find({
-      billSessionId: billSession._id,
-      productId: productID,
-      reservedBy: userID,
-    }).session(session);
-
-    if (productsReserved.length <= 0) {
-      throw new Error(`User ${userID} has not reserved product ${productID}`);
-    }
-
-    const newQuantity = productsReserved[0].quantity - 1;
-    if (newQuantity === 0) {
-      const isProductDeteled = await ProductReservation.deleteOne({
-        billSessionId: billSession._id,
-        productId: productID,
-        reservedBy: userID,
-      });
-
-      if (isProductDeteled.deletedCount === 0) {
-        throw new Error(`Something went wrong when deleting the product`);
-      }
-
-      await session.commitTransaction();
-      return isProductDeteled;
-    }
-
-    const quantityUpdated = await ProductReservation.findOneAndUpdate(
+    const _product = await Bill.findOneAndUpdate(
       {
-        billSessionId: billSession._id,
-        productId: productID,
-        reservedBy: userID,
+        _id: billID,
+        'products._id': product._id,
       },
       {
-        quantity: productsReserved[0].quantity - 1,
-      },
-      {
-        new: true,
-        session,
+        $set: {
+          'products.$.reservedBy': null,
+          'products.$.reservedAt': null,
+        },
       }
     );
 
+    if (!_product) {
+      throw Error("We couldn't save the rsservation, please try again");
+    }
     // TODO: Delete the product that has been reserved
     await session.commitTransaction();
-    return quantityUpdated;
+    return _product;
   } catch (error) {
     await session.abortTransaction();
     throw error;
