@@ -47,19 +47,36 @@ export function socketInit(io: Server) {
     });
 
     socket.on('leave-bill', async (billID: string, userID: string) => {
-      const billSession = await BillSession.findByIdAndUpdate(
-        { billID },
-        { $pop: { userID } }
-      );
-
-      if (billSession) {
-        io.to(billID).emit('user-left', {
-          userID,
-          activeUsers: billSession.activeUsers,
+      try {
+        const products = await Bill.find({
+          _id: billID,
+          'products.reservedBy': userID,
+        }).updateMany({
+          $set: {
+            'products.$.reservedBy': null,
+            'products.$.reservedAt': null,
+          },
         });
-      }
 
-      socket.leave(billID);
+        console.log({ billID, userID, products });
+
+        const billSession = await BillSession.findOne({
+          billID: billID,
+        }).updateOne({ $pull: { activeUsers: { userID: userID } } });
+
+        console.log({ billSession });
+        if (billSession && products) {
+          io.to(billID).emit('user-left', {
+            userID,
+            //activeUsers: billSession.activeUsers,
+          });
+        }
+      } catch (err) {
+        console.log({ err });
+        console.warn('We have a problem on leave bill, please check');
+      } finally {
+        socket.leave(billID);
+      }
     });
 
     socket.on(
@@ -183,14 +200,6 @@ export function socketInit(io: Server) {
         }
       }
     });
-
-    socket.on(
-      'release-reservations',
-      async ({ billID, userID }: { billID: string; userID: string }) => {
-        await releaseReservations(billID, userID);
-        io.to(billID).emit('reservations-released', { userID });
-      }
-    );
 
     socket.on('disconnect', async () => {
       console.log('User Disconnect: ', socket.id);
